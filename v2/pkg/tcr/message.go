@@ -33,6 +33,8 @@ type ReceivedMessage struct {
 	deliveryTag   uint64
 	amqpChan      *amqp.Channel
 	CorrelationId string
+	Timestamp     time.Time
+	AMQPDelivery  *amqp.Delivery
 }
 
 // NewMessage creates a new Message.
@@ -41,17 +43,37 @@ func NewMessage(
 	body []byte,
 	headers amqp.Table,
 	deliveryTag uint64,
+	amqpChan *amqp.Channel) *ReceivedMessage {
+
+	return &ReceivedMessage{
+		IsAckable:   isAckable,
+		Body:        body,
+		Headers:     headers,
+		deliveryTag: deliveryTag,
+		amqpChan:    amqpChan,
+	}
+}
+
+// NewMessage creates a new Message.
+func NewMessageFromDelivery(
+	isAckable bool,
 	amqpChan *amqp.Channel,
-	correlationId string) *ReceivedMessage {
+	delivery *amqp.Delivery) (*ReceivedMessage, error) {
+
+	if delivery == nil {
+		return nil, errors.New("No delivery available")
+	}
 
 	return &ReceivedMessage{
 		IsAckable:     isAckable,
-		Body:          body,
-		Headers:       headers,
-		deliveryTag:   deliveryTag,
+		Body:          delivery.Body,
+		Headers:       delivery.Headers,
+		deliveryTag:   delivery.DeliveryTag,
+		CorrelationId: delivery.CorrelationId,
+		Timestamp:     delivery.Timestamp,
 		amqpChan:      amqpChan,
-		CorrelationId: correlationId,
-	}
+		AMQPDelivery:  delivery,
+	}, nil
 }
 
 // Acknowledge allows for you to acknowledge message on the original channel it was received.
