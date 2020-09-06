@@ -249,6 +249,8 @@ func (pub *Publisher) PublishWithConfirmationContext(ctx context.Context, letter
 //   gets requeued for re-publish.
 // A confirmation failure keeps trying to publish (at least until timeout failure occurs.)
 func (pub *Publisher) PublishWithConfirmationTransient(letter *Letter, timeout time.Duration) {
+	maxRetryOnError := 3
+	retryOnError := 0
 
 	if timeout == 0 {
 		timeout = pub.publishTimeOutDuration
@@ -275,12 +277,20 @@ func (pub *Publisher) PublishWithConfirmationTransient(letter *Letter, timeout t
 				CorrelationId: letter.Envelope.CorrelationId,
 			},
 		)
+
 		if err != nil {
 			channel.Close()
 			if pub.sleepOnErrorInterval < 0 {
 				time.Sleep(pub.sleepOnErrorInterval)
 			}
-			continue // Take it again! From the top!
+
+			if retryOnError < maxRetryOnError {
+				retryOnError++
+				continue // Take it again! From the top!
+			} else {
+				pub.publishReceipt(letter, fmt.Errorf("publish for LetterId: %d failed to be published %v. No more retry can be performed.", letter.LetterID, err))
+				return
+			}
 		}
 
 		// Wait for very next confirmation on this channel, which should be our confirmation.
