@@ -236,7 +236,8 @@ func (pub *Publisher) PublishWithConfirmationV2(letter *Letter, timeout time.Dur
 			select {
 			case <-timeoutAfter:
 				pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterId: %d wasn't received in a timely manner - recommend retry/requeue", letter.LetterID))
-				pub.ConnectionPool.ReturnChannel(chanHost, false) // not a channel error
+
+				pub.ConnectionPool.ReturnChannel(chanHost, true) // Timed out, worth to treat it as error
 				return
 
 			case confirmation := <-chanHost.Confirmations:
@@ -244,11 +245,13 @@ func (pub *Publisher) PublishWithConfirmationV2(letter *Letter, timeout time.Dur
 				if !confirmation.Ack {
 					pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterId: %d was nack. - recommend retry/requeu", letter.LetterID))
 
+					pub.ConnectionPool.ReturnChannel(chanHost, false) // not a channel error
 					return
 				}
 
 				// Happy Path, publish was received by server and we didn't timeout client side.
 				pub.publishReceipt(letter, nil)
+
 				pub.ConnectionPool.ReturnChannel(chanHost, false)
 				return
 
