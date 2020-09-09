@@ -242,7 +242,7 @@ func (pub *Publisher) PublishWithConfirmationV2(letter *Letter, timeout time.Dur
 			case confirmation := <-chanHost.Confirmations:
 
 				if !confirmation.Ack {
-					pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterId: %d wasn't received in a timely manner (%dms) - recommend retry/requeue", letter.LetterID, timeout))
+					pub.publishReceipt(letter, fmt.Errorf("publish confirmation for LetterId: %d was nack. - recommend retry/requeu", letter.LetterID))
 
 					return
 				}
